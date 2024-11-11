@@ -1,0 +1,60 @@
+services:
+  http_server:
+    image: vsensetechnologies/skf-plc-http-server:latest
+    container_name: http_server
+    restart: always
+    ports:
+      - "8080:8080"
+    environment:
+      - SERVER_ADDRESS=${S1_SERVER_ADDRESS}
+      - CACHE_URL=${S1_CACHE_URL}
+      - DATABASE_URL=${S1_DATABASE_URL}
+      - SECRETE_KEY=${S1_SECRETE_KEY}
+      - SMTP_USERNAME=${S1_SMTP_USERNAME}
+      - SMTP_PASSWORD=${S1_SMTP_PASSWORD}
+      - SMTP_SERVICE_HOST=${S1_SMTP_SERVICE_HOST}
+      - SMTP_SERVICE_PORT=${S1_SMTP_SERVICE_PORT}
+
+    volumes:
+      - ./http_server.log:/app/app.log
+
+  mqtt_message_processor:
+    image: vsensetechnologies/skf-plc-mqtt-message-processor:latest
+    container_name: skf_plc_mqtt_message_processor
+    restart: always
+    command:
+      [
+        "./wait-for-it.sh",
+        "-h",
+        "mqtt_broker",
+        "-p",
+        "1883",
+        "-t",
+        "0",
+        "--",
+        "./main",
+      ]
+    environment:
+      - REDIS_URL=${S2_REDIS_URL}
+      - DATABASE_URL=${S2_DATABASE_URL}
+      - BROKER_HOST=${S2_BROKER_HOST}
+      - BROKER_PORT=${S2_BROKER_PORT}
+      - CLIENT_ID=${S2_CLIENT_ID}
+      - DRIER_RECIPE_MAX_TIME=${S2_DRIER_RECIPE_MAX_TIME}
+    volumes:
+      - ./wait-for-it.sh:/app/wait-for-it.sh
+      - ./mqtt_message_processor.log:/app/app.log
+
+  mqtt_broker:
+    image: emqx/emqx-enterprise:5.8.1
+    container_name: mqtt_broker
+    ports:
+      - 1883:1883
+      - 8083:8083
+      - 8084:8084
+      - 8883:8883
+      - 18083:18083
+    environment:
+      - EMQX_NODE_NAME=${S3_EMQX_NODE_NAME}
+      - EMQX_CLUSTER__DISCOVERY_STRATEGY=${S3_EMQX_CLUSTER__DISCOVERY_STRATEGY}
+      - EMQX_CLUSTER__STATIC__SEEDS=${S3_EMQX_CLUSTER__STATIC__SEEDS}
